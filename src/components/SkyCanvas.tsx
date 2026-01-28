@@ -28,7 +28,7 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const { coords, loading: locationLoading } = useLocation();
-  const { alpha, beta } = useDeviceOrientation();
+  const { alpha, beta, hasAbsoluteOrientation } = useDeviceOrientation();
 
   // Manual orientation for desktop fallback
   const [manualAlpha, setManualAlpha] = useState(0);
@@ -387,6 +387,14 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
                 {alpha !== null ? "📡 SENSOR" : "🖱️ MANUAL"}
               </span>
             </div>
+            {alpha !== null && (
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Compass:</span>
+                <span className={hasAbsoluteOrientation ? "text-green-400" : "text-red-400"}>
+                  {hasAbsoluteOrientation ? "✓ TRUE NORTH" : "✗ RELATIVE"}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Horizon gradient for depth */}
