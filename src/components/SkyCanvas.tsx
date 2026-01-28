@@ -336,23 +336,55 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
           <CompassOverlay nightMode={settings.nightMode} />
 
           {/* Debug Overlay */}
-          <div className="absolute top-20 left-4 z-50 pointer-events-none bg-black/40 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono space-y-1">
+          <div className="absolute top-20 left-4 z-50 pointer-events-none bg-black/60 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono space-y-1 min-w-[180px]">
+            <div className="text-muted-foreground uppercase text-[8px] mb-1 border-b border-white/10 pb-1">Device Orientation</div>
             <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground uppercase">Heading (A):</span>
+              <span className="text-muted-foreground">Heading:</span>
               <span className="text-primary">{(alpha ?? manualAlpha).toFixed(1)}°</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground uppercase">Pitch (B):</span>
+              <span className="text-muted-foreground">Pitch:</span>
               <span className="text-primary">{(beta ?? manualBeta).toFixed(1)}°</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground uppercase">Time:</span>
-              <span className="text-primary">{currentTime.toLocaleTimeString()}</span>
+              <span className="text-muted-foreground">Look Alt:</span>
+              <span className="text-primary">{(90 - (beta ?? manualBeta)).toFixed(1)}°</span>
+            </div>
+
+            <div className="text-muted-foreground uppercase text-[8px] mt-2 mb-1 border-b border-white/10 pb-1">Location & Time</div>
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Lat:</span>
+              <span className="text-primary">{coords.latitude.toFixed(2)}°</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground uppercase">Sensors:</span>
+              <span className="text-muted-foreground">Lon:</span>
+              <span className="text-primary">{coords.longitude.toFixed(2)}°</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Time:</span>
+              <span className="text-primary">{currentTime.toLocaleTimeString()}</span>
+            </div>
+
+            {computedPlanets.length > 0 && (
+              <>
+                <div className="text-muted-foreground uppercase text-[8px] mt-2 mb-1 border-b border-white/10 pb-1">
+                  {computedPlanets[0].name} Position
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Alt:</span>
+                  <span className="text-green-400">{computedPlanets[0].celestialPos?.altitude.toFixed(1)}°</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Az:</span>
+                  <span className="text-green-400">{computedPlanets[0].celestialPos?.azimuth.toFixed(1)}°</span>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-between gap-4 mt-2 pt-1 border-t border-white/10">
+              <span className="text-muted-foreground">Mode:</span>
               <span className={alpha !== null ? "text-green-400 font-bold" : "text-amber-400"}>
-                {alpha !== null ? "📡 ACTIVE" : "🖱️ MANUAL"}
+                {alpha !== null ? "📡 SENSOR" : "🖱️ MANUAL"}
               </span>
             </div>
           </div>
