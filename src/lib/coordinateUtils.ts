@@ -7,15 +7,67 @@ export interface ScreenPosition {
 const FOV_DEGREES = 60;
 
 /**
- * Converts celestial altitude/azimuth to screen position.
+ * Convert degrees to radians
+ */
+const toRadians = (deg: number): number => (deg * Math.PI) / 180;
+
+/**
+ * Convert radians to degrees  
+ */
+const toDegrees = (rad: number): number => (rad * 180) / Math.PI;
+
+/**
+ * Convert altitude/azimuth to 3D unit vector
+ * Using astronomy convention: azimuth 0 = North, 90 = East
+ */
+const altAzTo3D = (altitude: number, azimuth: number): [number, number, number] => {
+    const altRad = toRadians(altitude);
+    const azRad = toRadians(azimuth);
+
+    // x = East, y = North, z = Up (towards zenith)
+    const cosAlt = Math.cos(altRad);
+    return [
+        cosAlt * Math.sin(azRad),  // x (East)
+        cosAlt * Math.cos(azRad),  // y (North)
+        Math.sin(altRad)           // z (Up)
+    ];
+};
+
+/**
+ * Rotate a 3D point around the Z axis (yaw/heading)
+ */
+const rotateZ = (v: [number, number, number], angleDeg: number): [number, number, number] => {
+    const rad = toRadians(angleDeg);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    return [
+        v[0] * cos - v[1] * sin,
+        v[0] * sin + v[1] * cos,
+        v[2]
+    ];
+};
+
+/**
+ * Rotate a 3D point around the X axis (pitch/tilt)
+ */
+const rotateX = (v: [number, number, number], angleDeg: number): [number, number, number] => {
+    const rad = toRadians(angleDeg);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    return [
+        v[0],
+        v[1] * cos - v[2] * sin,
+        v[1] * sin + v[2] * cos
+    ];
+};
+
+/**
+ * Converts celestial altitude/azimuth to screen position using proper 3D rotation.
  * 
- * @param altitude - Celestial object altitude in degrees (0 = horizon, 90 = zenith)
- * @param azimuth - Celestial object azimuth in degrees (0 = North, 90 = East, 180 = South, 270 = West)
- * @param deviceHeading - Device compass heading (alpha) in degrees (0 = North, clockwise)
- * @param devicePitch - Device pitch (beta) in degrees (0 = flat, 90 = vertical pointing forward)
- * @param screenWidth - Screen width in pixels
- * @param screenHeight - Screen height in pixels
- * @returns Screen position {x, y} in pixels, or position for objects outside view
+ * This approach:
+ * 1. Converts celestial alt/az to a 3D unit vector
+ * 2. Rotates the vector to match the device's viewing direction
+ * 3. Projects the result onto the 2D screen
  */
 export const altAzToScreenPosition = (
     altitude: number,
@@ -25,42 +77,57 @@ export const altAzToScreenPosition = (
     screenWidth: number,
     screenHeight: number
 ): ScreenPosition => {
-    // Default to North-facing, vertical device if no sensors
+    // Default to North-facing, looking at horizon if no sensors
     const heading = deviceHeading ?? 0;
     const pitch = devicePitch ?? 90;
 
-    // Convert device pitch to look altitude
-    // When device is vertical (beta=90), we're looking at horizon (alt=0)
-    // When device is tilted back (beta=45), we're looking up at ~45° altitude
+    // Convert device pitch to look direction
+    // beta=90 means device vertical, looking at horizon (altitude 0)
+    // beta=45 means device tilted back 45°, looking up at altitude 45°
     const lookAltitude = 90 - pitch;
 
-    // Calculate angular difference in azimuth (horizontal direction)
-    let deltaAz = azimuth - heading;
-    // Normalize to -180 to +180 range
-    while (deltaAz > 180) deltaAz -= 360;
-    while (deltaAz < -180) deltaAz += 360;
+    // Convert celestial position to 3D vector
+    let point = altAzTo3D(altitude, azimuth);
 
-    // Calculate angular difference in altitude (vertical direction)
-    const deltaAlt = altitude - lookAltitude;
+    // Apply device orientation:
+    // 1. Rotate around Z (vertical) axis by -heading to align North with device forward
+    point = rotateZ(point, -heading);
 
-    // Convert angular offsets to screen coordinates
-    // Using gnomonic (tangent plane) projection for more accurate mapping
-    const fovRadians = (FOV_DEGREES * Math.PI) / 180;
-    const halfFov = fovRadians / 2;
+    // 2. Rotate around X (horizontal) axis to account for device tilt
+    // When looking at horizon (lookAltitude=0), no rotation needed
+    // When looking up (lookAltitude=45), rotate scene down by 45°
+    point = rotateX(point, -lookAltitude);
 
-    // Calculate screen position
-    // Horizontal: deltaAz of 0 = center, positive = right
-    const xNormalized = Math.tan((deltaAz * Math.PI) / 180) / Math.tan(halfFov);
-    // Vertical: deltaAlt of 0 = center, positive = up (invert for screen coords)
-    const yNormalized = -Math.tan((deltaAlt * Math.PI) / 180) / Math.tan(halfFov);
+    // After rotation:
+    // - point[1] > 0 means object is in front of us
+    // - point[0] = left/right offset
+    // - point[2] = up/down offset
 
-    // Map to screen pixels (-1 to +1 -> 0 to width/height)
-    let x = (xNormalized + 1) * (screenWidth / 2);
-    let y = (yNormalized + 1) * (screenHeight / 2);
+    // If object is behind us (y <= 0), place it off-screen
+    if (point[1] <= 0.01) {
+        return {
+            x: point[0] > 0 ? screenWidth * 2 : -screenWidth,
+            y: point[2] > 0 ? -screenHeight : screenHeight * 2
+        };
+    }
 
-    // Clamp to prevent extreme values
-    if (!isFinite(x)) x = screenWidth / 2;
-    if (!isFinite(y)) y = screenHeight / 2;
+    // Project to screen using perspective projection
+    const fovRad = toRadians(FOV_DEGREES);
+    const tanHalfFov = Math.tan(fovRad / 2);
+
+    // Calculate normalized device coordinates (-1 to 1)
+    // Divide by y (depth) for perspective
+    const ndcX = (point[0] / point[1]) / tanHalfFov;
+    const ndcY = -(point[2] / point[1]) / tanHalfFov; // Invert for screen coords
+
+    // Map to screen pixels
+    const x = (ndcX + 1) * (screenWidth / 2);
+    const y = (ndcY + 1) * (screenHeight / 2);
+
+    // Handle edge cases
+    if (!isFinite(x) || !isFinite(y)) {
+        return { x: screenWidth / 2, y: screenHeight / 2 };
+    }
 
     return { x, y };
 };
@@ -78,13 +145,18 @@ export const isInView = (
     const pitch = devicePitch ?? 90;
     const lookAltitude = 90 - pitch;
 
-    let deltaAz = azimuth - heading;
-    while (deltaAz > 180) deltaAz -= 360;
-    while (deltaAz < -180) deltaAz += 360;
+    let point = altAzTo3D(altitude, azimuth);
+    point = rotateZ(point, -heading);
+    point = rotateX(point, -lookAltitude);
 
-    const deltaAlt = altitude - lookAltitude;
+    // Object is in view if it's in front (y > 0) and within FOV
+    if (point[1] <= 0) return false;
 
-    // Check if within reasonable viewing angle (FOV + margin)
-    const viewLimit = FOV_DEGREES / 2 + 10;
-    return Math.abs(deltaAz) < viewLimit && Math.abs(deltaAlt) < viewLimit;
+    const fovRad = toRadians(FOV_DEGREES);
+    const tanHalfFov = Math.tan(fovRad / 2);
+
+    const ndcX = Math.abs(point[0] / point[1]) / tanHalfFov;
+    const ndcY = Math.abs(point[2] / point[1]) / tanHalfFov;
+
+    return ndcX < 1.2 && ndcY < 1.2; // Allow small margin
 };
