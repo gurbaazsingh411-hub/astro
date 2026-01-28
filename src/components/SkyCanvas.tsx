@@ -132,6 +132,16 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
         coords.longitude
       );
 
+      // Debug logging for first planet
+      if (planet.id === 'jupiter') {
+        console.log('🪐 Jupiter Debug:', {
+          time: currentTime.toISOString(),
+          location: { lat: coords.latitude, lon: coords.longitude },
+          altitude: celestialPos.altitude,
+          azimuth: celestialPos.azimuth
+        });
+      }
+
       const screenPos = altAzToScreenPosition(
         celestialPos.altitude,
         celestialPos.azimuth,

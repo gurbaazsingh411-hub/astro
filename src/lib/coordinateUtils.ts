@@ -86,6 +86,14 @@ export const altAzToScreenPosition = (
     // beta=45 means device tilted back 45°, looking up at altitude 45°
     const lookAltitude = 90 - pitch;
 
+    // Debug logging (only log occasionally to avoid spam)
+    if (Math.random() < 0.01) {
+        console.log('📍 Coordinate Transform:', {
+            input: { altitude, azimuth, deviceHeading, devicePitch },
+            computed: { heading, pitch, lookAltitude }
+        });
+    }
+
     // Convert celestial position to 3D vector
     let point = altAzTo3D(altitude, azimuth);
 
