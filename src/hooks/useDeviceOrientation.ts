@@ -9,6 +9,28 @@ export interface Orientation {
     hasAbsoluteOrientation: boolean;
 }
 
+// Exponential smoothing factor (0-1, lower = more smoothing)
+const SMOOTHING_FACTOR = 0.3;
+
+// Helper to smooth angle values (handles 0/360 wraparound)
+const smoothAngle = (current: number | null, target: number, factor: number): number => {
+    if (current === null) return target;
+
+    // Handle wraparound (e.g., 359° -> 1°)
+    let delta = target - current;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+
+    return (current + delta * factor + 360) % 360;
+};
+
+// Helper to smooth regular values
+const smoothValue = (current: number | null, target: number | null, factor: number): number | null => {
+    if (target === null) return current;
+    if (current === null) return target;
+    return current + (target - current) * factor;
+};
+
 export const useDeviceOrientation = () => {
     const [orientation, setOrientation] = useState<Orientation>({
         alpha: null,
@@ -20,6 +42,11 @@ export const useDeviceOrientation = () => {
     });
 
     const isAbsoluteRef = useRef(false);
+    const smoothedRef = useRef<{ alpha: number | null; beta: number | null; gamma: number | null }>({
+        alpha: null,
+        beta: null,
+        gamma: null
+    });
 
     // Handler for standard device orientation (may not have absolute heading)
     const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
@@ -31,22 +58,30 @@ export const useDeviceOrientation = () => {
 
         if (compassHeading !== undefined && compassHeading !== null) {
             // iOS with compass - webkitCompassHeading is degrees from North (clockwise)
+            smoothedRef.current.alpha = smoothAngle(smoothedRef.current.alpha, compassHeading, SMOOTHING_FACTOR);
+            smoothedRef.current.beta = smoothValue(smoothedRef.current.beta, event.beta, SMOOTHING_FACTOR);
+            smoothedRef.current.gamma = smoothValue(smoothedRef.current.gamma, event.gamma, SMOOTHING_FACTOR);
+
             setOrientation(prev => ({
                 ...prev,
-                alpha: compassHeading,
-                beta: event.beta,
-                gamma: event.gamma,
+                alpha: smoothedRef.current.alpha,
+                beta: smoothedRef.current.beta,
+                gamma: smoothedRef.current.gamma,
                 hasAbsoluteOrientation: true
             }));
             isAbsoluteRef.current = true;
         } else if (event.alpha !== null) {
             // Android without absolute - alpha is relative, NOT compass heading
             // We still use it but mark as non-absolute
+            smoothedRef.current.alpha = smoothAngle(smoothedRef.current.alpha, event.alpha, SMOOTHING_FACTOR);
+            smoothedRef.current.beta = smoothValue(smoothedRef.current.beta, event.beta, SMOOTHING_FACTOR);
+            smoothedRef.current.gamma = smoothValue(smoothedRef.current.gamma, event.gamma, SMOOTHING_FACTOR);
+
             setOrientation(prev => ({
                 ...prev,
-                alpha: event.alpha,
-                beta: event.beta,
-                gamma: event.gamma,
+                alpha: smoothedRef.current.alpha,
+                beta: smoothedRef.current.beta,
+                gamma: smoothedRef.current.gamma,
                 hasAbsoluteOrientation: false
             }));
         }
@@ -56,11 +91,17 @@ export const useDeviceOrientation = () => {
     const handleAbsoluteOrientation = useCallback((event: DeviceOrientationEvent) => {
         if (event.alpha !== null && (event as any).absolute === true) {
             // This is true compass heading on Android
+            const correctedAlpha = 360 - event.alpha!; // Convert to match iOS convention
+
+            smoothedRef.current.alpha = smoothAngle(smoothedRef.current.alpha, correctedAlpha, SMOOTHING_FACTOR);
+            smoothedRef.current.beta = smoothValue(smoothedRef.current.beta, event.beta, SMOOTHING_FACTOR);
+            smoothedRef.current.gamma = smoothValue(smoothedRef.current.gamma, event.gamma, SMOOTHING_FACTOR);
+
             setOrientation(prev => ({
                 ...prev,
-                alpha: 360 - event.alpha!, // Convert to match iOS convention (0 = North, clockwise)
-                beta: event.beta,
-                gamma: event.gamma,
+                alpha: smoothedRef.current.alpha,
+                beta: smoothedRef.current.beta,
+                gamma: smoothedRef.current.gamma,
                 hasAbsoluteOrientation: true
             }));
             isAbsoluteRef.current = true;

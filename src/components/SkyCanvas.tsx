@@ -146,7 +146,7 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
         screenPos,
         celestialPos
       };
-    }).filter(p => p !== null && p.screenPos !== null);
+    }).filter(p => p !== null && p.screenPos !== null && p.celestialPos && p.celestialPos.altitude > 0);
   }, [planets, currentTime, coords, alpha, beta, manualAlpha, manualBeta, dimensions, locationLoading]);
 
   // Calculate constellation screen positions
@@ -201,9 +201,10 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
       return {
         ...constellation,
         centerScreenPos,
+        centerCelestialPos,
         stars: starsWithScreenPos
       };
-    }).filter(c => c.centerScreenPos !== null);
+    }).filter(c => c.centerScreenPos !== null && c.centerCelestialPos && c.centerCelestialPos.altitude > 0);
   }, [constellations, currentTime, coords, alpha, beta, manualAlpha, manualBeta, dimensions, locationLoading]);
 
   const computedISS = useMemo(() => {
@@ -395,6 +396,10 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
                 </span>
               </div>
             )}
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Visible:</span>
+              <span className="text-cyan-400">{computedPlanets.length}P / {computedConstellations.length}C</span>
+            </div>
           </div>
 
           {/* Horizon gradient for depth */}
