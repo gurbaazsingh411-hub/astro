@@ -137,10 +137,17 @@ export const isInView = (
     altitude: number,
     azimuth: number,
     deviceHeading: number | null,
-    devicePitch: number | null
+    devicePitch: number | null,
+    facingMode: "environment" | "user" = "environment"
 ): boolean => {
-    const heading = deviceHeading ?? 0;
+    let heading = deviceHeading ?? 0;
     const beta = devicePitch ?? 90;
+
+    // Adjust heading for front camera (opposite direction)
+    if (facingMode === "user") {
+        heading = (heading + 180) % 360;
+    }
+
     const lookAltitude = beta - 90;
 
     // Calculate angular differences

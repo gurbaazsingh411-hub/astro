@@ -3,11 +3,18 @@ import { useDeviceOrientation } from "@/hooks/useDeviceOrientation";
 
 interface CompassOverlayProps {
   nightMode: boolean;
+  facingMode: "environment" | "user";
 }
 
-const CompassOverlay = ({ nightMode }: CompassOverlayProps) => {
+const CompassOverlay = ({ nightMode, facingMode }: CompassOverlayProps) => {
   const { alpha } = useDeviceOrientation();
-  const heading = alpha !== null ? Math.round(alpha) : 0;
+  let heading = alpha !== null ? Math.round(alpha) : 0;
+
+  // Adjust heading for front camera (opposite direction)
+  if (facingMode === "user") {
+    heading = (heading + 180) % 360;
+  }
+
   const color = nightMode ? 'hsl(0, 50%, 60%)' : 'hsl(185, 70%, 60%)';
   const borderColor = nightMode ? 'hsl(0, 40%, 30%)' : 'hsl(185, 50%, 30%)';
 

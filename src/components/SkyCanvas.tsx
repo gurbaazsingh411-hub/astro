@@ -390,7 +390,10 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
           )}
 
           {/* Compass overlay */}
-          <CompassOverlay nightMode={settings.nightMode} />
+          <CompassOverlay
+            nightMode={settings.nightMode}
+            facingMode={facingMode}
+          />
 
           {/* Debug Overlay */}
           <div className="absolute top-20 left-4 z-50 pointer-events-none bg-black/60 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono space-y-1 min-w-[180px]">
@@ -405,7 +408,7 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-muted-foreground">Look Alt:</span>
-              <span className="text-primary">{(90 - (beta ?? manualBeta)).toFixed(1)}°</span>
+              <span className="text-primary">{((beta ?? manualBeta) - 90).toFixed(1)}°</span>
             </div>
 
             <div className="text-muted-foreground uppercase text-[8px] mt-2 mb-1 border-b border-white/10 pb-1">Location & Time</div>
