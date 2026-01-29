@@ -29,6 +29,7 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const { coords, loading: locationLoading } = useLocation();
   const { alpha, beta, hasAbsoluteOrientation } = useDeviceOrientation();
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
 
   // Manual orientation for desktop fallback
   const [manualAlpha, setManualAlpha] = useState(0);
@@ -114,6 +115,36 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
     setIsDragging(false);
   };
 
+  const cardinalDirections = [
+    { label: 'N', azimuth: 0 },
+    { label: 'NE', azimuth: 45 },
+    { label: 'E', azimuth: 90 },
+    { label: 'SE', azimuth: 135 },
+    { label: 'S', azimuth: 180 },
+    { label: 'SW', azimuth: 225 },
+    { label: 'W', azimuth: 270 },
+    { label: 'NW', azimuth: 315 },
+  ];
+
+  const computedCardinals = useMemo(() => {
+    if (locationLoading || dimensions.width === 0) return [];
+    const activeAlpha = alpha ?? manualAlpha;
+    const activeBeta = beta ?? manualBeta;
+
+    return cardinalDirections.map(dir => ({
+      ...dir,
+      screenPos: altAzToScreenPosition(
+        0, // On horizon
+        dir.azimuth,
+        activeAlpha,
+        activeBeta,
+        dimensions.width,
+        dimensions.height,
+        facingMode
+      )
+    }));
+  }, [alpha, manualAlpha, beta, manualBeta, dimensions, locationLoading, facingMode]);
+
   // Calculate planet screen positions
   const computedPlanets = useMemo(() => {
     if (locationLoading) return [];
@@ -132,23 +163,14 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
         coords.longitude
       );
 
-      // Debug logging for first planet
-      if (planet.id === 'jupiter') {
-        console.log('🪐 Jupiter Debug:', {
-          time: currentTime.toISOString(),
-          location: { lat: coords.latitude, lon: coords.longitude },
-          altitude: celestialPos.altitude,
-          azimuth: celestialPos.azimuth
-        });
-      }
-
       const screenPos = altAzToScreenPosition(
         celestialPos.altitude,
         celestialPos.azimuth,
         activeAlpha,
         activeBeta,
         dimensions.width,
-        dimensions.height
+        dimensions.height,
+        facingMode
       );
 
       return {
@@ -156,8 +178,8 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
         screenPos,
         celestialPos
       };
-    }).filter(p => p !== null && p.screenPos !== null && p.celestialPos && p.celestialPos.altitude > 0);
-  }, [planets, currentTime, coords, alpha, beta, manualAlpha, manualBeta, dimensions, locationLoading]);
+    }).filter(p => p !== null && p.screenPos !== null && p.celestialPos && p.celestialPos.altitude > -10); // Show slightly below horizon
+  }, [planets, currentTime, coords, alpha, beta, manualAlpha, manualBeta, dimensions, locationLoading, facingMode]);
 
   // Calculate constellation screen positions
   const computedConstellations = useMemo(() => {
@@ -182,7 +204,8 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
         activeAlpha,
         activeBeta,
         dimensions.width,
-        dimensions.height
+        dimensions.height,
+        facingMode
       );
 
       // Calculate star positions
@@ -203,7 +226,8 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
             activeAlpha,
             activeBeta,
             dimensions.width,
-            dimensions.height
+            dimensions.height,
+            facingMode
           )
         };
       });
@@ -214,8 +238,8 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
         centerCelestialPos,
         stars: starsWithScreenPos
       };
-    }).filter(c => c.centerScreenPos !== null && c.centerCelestialPos && c.centerCelestialPos.altitude > 0);
-  }, [constellations, currentTime, coords, alpha, beta, manualAlpha, manualBeta, dimensions, locationLoading]);
+    }).filter(c => c.centerScreenPos !== null && c.centerCelestialPos && c.centerCelestialPos.altitude > -10);
+  }, [constellations, currentTime, coords, alpha, beta, manualAlpha, manualBeta, dimensions, locationLoading, facingMode]);
 
   const computedISS = useMemo(() => {
     if (locationLoading || dimensions.width === 0) return null;
@@ -237,7 +261,8 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
       activeAlpha,
       activeBeta,
       dimensions.width,
-      dimensions.height
+      dimensions.height,
+      facingMode
     );
 
     return {
@@ -245,7 +270,7 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
       altitude: issCelestialPos.altitude,
       visible: issCelestialPos.altitude > 0
     };
-  }, [currentTime, coords, alpha, beta, manualAlpha, manualBeta, dimensions, locationLoading]);
+  }, [currentTime, coords, alpha, beta, manualAlpha, manualBeta, dimensions, locationLoading, facingMode]);
 
   // Debug: Calculate position of Horizon (Alt = 0) at North/East/South/West
   const horizonPoints = useMemo(() => {
@@ -256,13 +281,13 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
     const activeBeta = beta ?? manualBeta;
 
     for (let az = 0; az <= 360; az += 10) {
-      const pos = altAzToScreenPosition(0, az, activeAlpha, activeBeta, dimensions.width, dimensions.height);
+      const pos = altAzToScreenPosition(0, az, activeAlpha, activeBeta, dimensions.width, dimensions.height, facingMode);
       if (isFinite(pos.x) && isFinite(pos.y)) {
         points.push(pos);
       }
     }
     return points;
-  }, [alpha, beta, manualAlpha, manualBeta, dimensions]);
+  }, [alpha, beta, manualAlpha, manualBeta, dimensions, facingMode]);
 
   return (
     <div
@@ -273,8 +298,29 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <CameraView nightMode={settings.nightMode}>
+      <CameraView
+        nightMode={settings.nightMode}
+        facingMode={facingMode}
+        onFacingModeChange={setFacingMode}
+      >
         <div className="relative w-full h-full">
+          {/* Cardinal Directions */}
+          {computedCardinals.map((dir) => (
+            <motion.div
+              key={dir.label}
+              className="absolute pointer-events-none select-none text-foreground/50 font-bold text-xl"
+              style={{
+                left: dir.screenPos.x,
+                top: dir.screenPos.y,
+                transform: 'translate(-50%, -100%)'
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+            >
+              {dir.label}
+            </motion.div>
+          ))}
+
           {/* Constellation lines and stars */}
           <AnimatePresence>
             {settings.showConstellations && computedConstellations.map((constellation) => (

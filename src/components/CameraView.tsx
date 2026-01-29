@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 interface CameraViewProps {
   nightMode: boolean;
   children: React.ReactNode;
+  facingMode: "environment" | "user";
+  onFacingModeChange: (mode: "environment" | "user") => void;
 }
 
-const CameraView = ({ nightMode, children }: CameraViewProps) => {
+const CameraView = ({ nightMode, children, facingMode, onFacingModeChange }: CameraViewProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
 
   const startCamera = useCallback(async () => {
     setIsLoading(true);
@@ -44,7 +45,7 @@ const CameraView = ({ nightMode, children }: CameraViewProps) => {
       setIsLoading(false);
     } catch (err) {
       console.error("Camera access error:", err);
-      
+
       if (err instanceof Error) {
         if (err.name === "NotAllowedError") {
           setError("Camera access denied. Please allow camera permissions to use AR mode.");
@@ -56,14 +57,14 @@ const CameraView = ({ nightMode, children }: CameraViewProps) => {
           setError("Unable to access camera. Using simulation mode.");
         }
       }
-      
+
       setIsLoading(false);
     }
-  }, [facingMode, stream]);
+  }, [facingMode]); // Removed stream from dependencies to avoid loop
 
   const switchCamera = useCallback(() => {
-    setFacingMode(prev => prev === "environment" ? "user" : "environment");
-  }, []);
+    onFacingModeChange(facingMode === "environment" ? "user" : "environment");
+  }, [facingMode, onFacingModeChange]);
 
   useEffect(() => {
     startCamera();
@@ -123,16 +124,16 @@ const CameraView = ({ nightMode, children }: CameraViewProps) => {
 
       {/* Error state with fallback */}
       {error && !isLoading && (
-        <div 
+        <div
           className="absolute inset-0 star-field"
           style={{
-            background: nightMode 
+            background: nightMode
               ? 'linear-gradient(180deg, hsl(0, 15%, 3%) 0%, hsl(0, 20%, 6%) 100%)'
               : 'linear-gradient(180deg, hsl(230, 30%, 5%) 0%, hsl(250, 35%, 12%) 50%, hsl(230, 25%, 8%) 100%)'
           }}
         >
           {/* Nebula effect for fallback */}
-          <div 
+          <div
             className="absolute inset-0 opacity-30 pointer-events-none"
             style={{
               background: nightMode
@@ -140,7 +141,7 @@ const CameraView = ({ nightMode, children }: CameraViewProps) => {
                 : 'radial-gradient(ellipse at 30% 20%, hsl(270, 50%, 20%) 0%, transparent 50%), radial-gradient(ellipse at 70% 70%, hsl(200, 50%, 15%) 0%, transparent 40%)'
             }}
           />
-          
+
           {/* Error message overlay */}
           <motion.div
             className="absolute top-20 left-4 right-4 z-20"
@@ -194,7 +195,7 @@ const CameraView = ({ nightMode, children }: CameraViewProps) => {
 
       {/* Night mode overlay */}
       {nightMode && (
-        <div 
+        <div
           className="absolute inset-0 pointer-events-none z-5"
           style={{
             background: 'linear-gradient(180deg, hsl(0, 30%, 10%, 0.3) 0%, hsl(0, 20%, 5%, 0.4) 100%)',

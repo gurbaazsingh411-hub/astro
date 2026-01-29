@@ -75,54 +75,46 @@ export const altAzToScreenPosition = (
     deviceHeading: number | null,
     devicePitch: number | null,
     screenWidth: number,
-    screenHeight: number
+    screenHeight: number,
+    facingMode: "environment" | "user" = "environment"
 ): ScreenPosition => {
     // Default to North-facing, device held vertically if no sensors
-    const heading = deviceHeading ?? 0;
+    let heading = deviceHeading ?? 0;
     const beta = devicePitch ?? 90;
 
+    // Adjust heading for front camera (opposite direction)
+    if (facingMode === "user") {
+        heading = (heading + 180) % 360;
+    }
+
     // Convert beta (device pitch) to look altitude
-    // beta = 0° means device flat (looking down at ground)
-    // beta = 90° means device vertical (looking at horizon)
-    // beta = 180° means device flat facing up (looking at zenith)
-    // For most AR use: beta ~90° means looking at horizon
-    const lookAltitude = beta - 90; // When beta=90, lookAlt=0 (horizon)
+    const lookAltitude = beta - 90;
 
     // Calculate angular differences
-    // Horizontal difference (azimuth)
     let deltaAz = azimuth - heading;
-    // Normalize to -180 to +180
     while (deltaAz > 180) deltaAz -= 360;
     while (deltaAz < -180) deltaAz += 360;
 
-    // Vertical difference (altitude)
     const deltaAlt = altitude - lookAltitude;
-
-    // Debug logging (only occasionally to avoid spam)
-    if (Math.random() < 0.005) {
-        console.log('📍 Transform:', {
-            object: { alt: altitude.toFixed(1), az: azimuth.toFixed(1) },
-            device: { heading: heading.toFixed(1), beta: beta.toFixed(1), lookAlt: lookAltitude.toFixed(1) },
-            delta: { deltaAz: deltaAz.toFixed(1), deltaAlt: deltaAlt.toFixed(1) }
-        });
-    }
 
     // Convert angular differences to screen position using perspective projection
     const fovRad = toRadians(FOV_DEGREES);
     const halfFovRad = fovRad / 2;
     const tanHalfFov = Math.tan(halfFovRad);
 
-    // Calculate normalized device coordinates (-1 to +1)
-    // Using tangent for perspective projection
     const deltaAzRad = toRadians(deltaAz);
     const deltaAltRad = toRadians(deltaAlt);
 
-    // For small angles, tan(θ) ≈ θ, but we use full tan for accuracy
-    const ndcX = Math.tan(deltaAzRad) / tanHalfFov;
+    // NDC -1 = left/top edge, NDC +1 = right/bottom edge
+    let ndcX = Math.tan(deltaAzRad) / tanHalfFov;
     const ndcY = -Math.tan(deltaAltRad) / tanHalfFov; // Negative because screen Y increases downward
 
+    // Mirror X if front camera is mirrored
+    if (facingMode === "user") {
+        ndcX = -ndcX;
+    }
+
     // Map NDC to screen pixels
-    // NDC -1 = left/top edge, NDC +1 = right/bottom edge
     const x = (ndcX + 1) * (screenWidth / 2);
     const y = (ndcY + 1) * (screenHeight / 2);
 
