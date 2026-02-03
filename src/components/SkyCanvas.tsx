@@ -203,13 +203,15 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
 
     return constellations.map(constellation => {
       // Calculate center position
-      const centerCelestialPos = calculateStarPosition(
-        constellation.ra,
-        constellation.dec,
-        currentTime,
-        coords.latitude,
-        coords.longitude
-      );
+      const centerCelestialPos = settings.prototypeMode
+        ? getPrototypeStarPosition(constellation.ra, constellation.dec)
+        : calculateStarPosition(
+          constellation.ra,
+          constellation.dec,
+          currentTime,
+          coords.latitude,
+          coords.longitude
+        );
 
       const centerScreenPos = altAzToScreenPosition(
         centerCelestialPos.altitude,
@@ -223,13 +225,15 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
 
       // Calculate star positions
       const starsWithScreenPos = constellation.stars.map(star => {
-        const starCelestialPos = calculateStarPosition(
-          star.ra,
-          star.dec,
-          currentTime,
-          coords.latitude,
-          coords.longitude
-        );
+        const starCelestialPos = settings.prototypeMode
+          ? getPrototypeStarPosition(star.ra, star.dec)
+          : calculateStarPosition(
+            star.ra,
+            star.dec,
+            currentTime,
+            coords.latitude,
+            coords.longitude
+          );
 
         return {
           ...star,

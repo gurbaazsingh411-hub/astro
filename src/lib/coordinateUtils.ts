@@ -176,6 +176,21 @@ export const getPrototypePosition = (planetId: string): { altitude: number; azim
         'uranus': { altitude: 20, azimuth: 345, visible: true },
         'neptune': { altitude: 10, azimuth: 355, visible: true },
     };
-
     return defaultPositions[planetId] || { altitude: 10, azimuth: 0, visible: true };
+};
+
+/**
+ * Returns fixed, scenic positions for stars/constellations in Prototype Mode.
+ */
+export const getPrototypeStarPosition = (ra: number, dec: number): { altitude: number; azimuth: number; visible: boolean } => {
+    // Map RA/Dec to a predictable spread across the sky for the demo
+    // RA is 0-24, Dec is -90 to 90
+    const pseudoAlt = Math.abs(dec) % 60 + 10; // Maintain some variety but stay positive
+    const pseudoAz = (ra * 15) % 360;
+
+    return {
+        altitude: pseudoAlt,
+        azimuth: pseudoAz,
+        visible: true
+    };
 };
