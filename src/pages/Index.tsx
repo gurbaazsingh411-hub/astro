@@ -17,6 +17,7 @@ const Index = () => {
     showSatellites: true,
     nightMode: false,
     timeOffset: 0,
+    prototypeMode: false,
   });
   const [selectedPlanet, setSelectedPlanet] = useState<Planet | null>(null);
   const [selectedConstellation, setSelectedConstellation] = useState<Constellation | null>(null);

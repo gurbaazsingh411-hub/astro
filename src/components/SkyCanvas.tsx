@@ -7,10 +7,12 @@ import PlanetMarker from "./PlanetMarker";
 import ConstellationOverlay from "./ConstellationOverlay";
 import CompassOverlay from "./CompassOverlay";
 import CameraView from "./CameraView";
+import CalibrationGuide from "./CalibrationGuide";
 import { useLocation } from "@/hooks/useLocation";
+
 import { useDeviceOrientation } from "@/hooks/useDeviceOrientation";
 import { calculatePlanetPosition, calculateStarPosition, getBodyFromId } from "@/lib/astronomyService";
-import { altAzToScreenPosition } from "@/lib/coordinateUtils";
+import { altAzToScreenPosition, getPrototypePosition, isInView } from "@/lib/coordinateUtils";
 import { calculateISSPosition } from "@/lib/satelliteService";
 import html2canvas from "html2canvas";
 
@@ -29,13 +31,22 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const { coords, loading: locationLoading } = useLocation();
   const { alpha, beta, hasAbsoluteOrientation } = useDeviceOrientation();
-  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const facingMode = "environment"; // Restrict to back camera only
 
   // Manual orientation for desktop fallback
   const [manualAlpha, setManualAlpha] = useState(0);
   const [manualBeta, setManualBeta] = useState(90);
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  const [showCalibration, setShowCalibration] = useState(false);
+
+  useEffect(() => {
+    // Show calibration guide after a short delay on start
+    const timer = setTimeout(() => {
+      setShowCalibration(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: async () => {
@@ -156,12 +167,14 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
       const body = getBodyFromId(planet.id);
       if (!body) return null;
 
-      const celestialPos = calculatePlanetPosition(
-        body,
-        currentTime,
-        coords.latitude,
-        coords.longitude
-      );
+      const celestialPos = settings.prototypeMode
+        ? getPrototypePosition(planet.id)
+        : calculatePlanetPosition(
+          body,
+          currentTime,
+          coords.latitude,
+          coords.longitude
+        );
 
       const screenPos = altAzToScreenPosition(
         celestialPos.altitude,
@@ -301,9 +314,14 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
       <CameraView
         nightMode={settings.nightMode}
         facingMode={facingMode}
-        onFacingModeChange={setFacingMode}
+        onFacingModeChange={() => { }} // No-op, restricted to environment
       >
         <div className="relative w-full h-full">
+          <CalibrationGuide
+            isVisible={showCalibration}
+            onClose={() => setShowCalibration(false)}
+          />
+
           {/* Cardinal Directions */}
           {computedCardinals.map((dir) => (
             <motion.div

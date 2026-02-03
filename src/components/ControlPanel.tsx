@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Moon, Sun, Telescope, Orbit, Satellite, Camera, Clock } from "lucide-react";
+import { Moon, Sun, Telescope, Orbit, Satellite, Camera, Clock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { ViewSettings } from "@/types/astronomy";
@@ -122,6 +122,16 @@ const ControlPanel = ({ settings, onSettingsChange, onCapture }: ControlPanelPro
               title="Night Mode"
             >
               {settings.nightMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+
+            <Button
+              variant={settings.prototypeMode ? "glow" : "glass"}
+              size="icon"
+              onClick={() => toggleSetting("prototypeMode")}
+              title="Prototype Mode (Fixed Positions)"
+              className={settings.prototypeMode ? "text-cosmic-gold" : ""}
+            >
+              <Sparkles className="w-4 h-4" />
             </Button>
           </div>
 

@@ -43,4 +43,5 @@ export interface ViewSettings {
   showSatellites: boolean;
   nightMode: boolean;
   timeOffset: number; // hours from now
+  prototypeMode: boolean;
 }

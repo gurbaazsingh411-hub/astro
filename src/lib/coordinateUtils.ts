@@ -161,3 +161,21 @@ export const isInView = (
     const viewLimit = FOV_DEGREES / 2 + 15; // 15° margin
     return Math.abs(deltaAz) < viewLimit && Math.abs(deltaAlt) < viewLimit;
 };
+
+/**
+ * Returns fixed, scenic positions for planets in Prototype Mode.
+ * This ensures all planets are visible and arranged beautifully for a demo.
+ */
+export const getPrototypePosition = (planetId: string): { altitude: number; azimuth: number; visible: boolean } => {
+    const defaultPositions: Record<string, { altitude: number; azimuth: number; visible: boolean }> = {
+        'mercury': { altitude: 15, azimuth: 260, visible: true },
+        'venus': { altitude: 25, azimuth: 275, visible: true },
+        'mars': { altitude: 35, azimuth: 290, visible: true },
+        'jupiter': { altitude: 45, azimuth: 310, visible: true },
+        'saturn': { altitude: 30, azimuth: 330, visible: true },
+        'uranus': { altitude: 20, azimuth: 345, visible: true },
+        'neptune': { altitude: 10, azimuth: 355, visible: true },
+    };
+
+    return defaultPositions[planetId] || { altitude: 10, azimuth: 0, visible: true };
+};
