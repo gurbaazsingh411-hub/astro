@@ -163,6 +163,33 @@ export const isInView = (
 };
 
 /**
+ * Returns fixed screen positions for demo mode.
+ * Planets are placed based on device heading so they appear in the current view.
+ */
+export const getPrototypeScreenPosition = (
+    planetId: string,
+    screenWidth: number,
+    screenHeight: number
+): ScreenPosition => {
+    // Fixed positions spread across the screen for a beautiful demo
+    const positions: Record<string, { x: number; y: number }> = {
+        'mercury': { x: 0.15, y: 0.25 },
+        'venus': { x: 0.30, y: 0.15 },
+        'mars': { x: 0.50, y: 0.20 },
+        'jupiter': { x: 0.70, y: 0.25 },
+        'saturn': { x: 0.85, y: 0.35 },
+        'uranus': { x: 0.25, y: 0.45 },
+        'neptune': { x: 0.75, y: 0.50 },
+    };
+
+    const pos = positions[planetId] || { x: 0.5, y: 0.3 };
+    return {
+        x: pos.x * screenWidth,
+        y: pos.y * screenHeight
+    };
+};
+
+/**
  * Returns fixed, scenic positions for planets in Prototype Mode.
  * This ensures all planets are visible and arranged beautifully for a demo.
  */
@@ -178,6 +205,7 @@ export const getPrototypePosition = (planetId: string): { altitude: number; azim
     };
     return defaultPositions[planetId] || { altitude: 10, azimuth: 0, visible: true };
 };
+
 
 /**
  * Returns fixed, scenic positions for stars/constellations in Prototype Mode.

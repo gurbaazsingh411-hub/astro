@@ -12,7 +12,7 @@ import { useLocation } from "@/hooks/useLocation";
 
 import { useDeviceOrientation } from "@/hooks/useDeviceOrientation";
 import { calculatePlanetPosition, calculateStarPosition, getBodyFromId } from "@/lib/astronomyService";
-import { altAzToScreenPosition, getPrototypePosition, isInView } from "@/lib/coordinateUtils";
+import { altAzToScreenPosition, getPrototypePosition, isInView, getPrototypeScreenPosition, getPrototypeStarPosition } from "@/lib/coordinateUtils";
 import { calculateISSPosition } from "@/lib/satelliteService";
 import html2canvas from "html2canvas";
 
@@ -164,17 +164,24 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
     const activeBeta = beta ?? manualBeta;
 
     return planets.map(planet => {
+      // In prototype mode, use fixed screen positions
+      if (settings.prototypeMode) {
+        return {
+          ...planet,
+          screenPos: getPrototypeScreenPosition(planet.id, dimensions.width, dimensions.height),
+          celestialPos: { altitude: 45, azimuth: 0, visible: true }
+        };
+      }
+
       const body = getBodyFromId(planet.id);
       if (!body) return null;
 
-      const celestialPos = settings.prototypeMode
-        ? getPrototypePosition(planet.id)
-        : calculatePlanetPosition(
-          body,
-          currentTime,
-          coords.latitude,
-          coords.longitude
-        );
+      const celestialPos = calculatePlanetPosition(
+        body,
+        currentTime,
+        coords.latitude,
+        coords.longitude
+      );
 
       const screenPos = altAzToScreenPosition(
         celestialPos.altitude,
@@ -191,7 +198,7 @@ const SkyCanvas = forwardRef<SkyCanvasHandle, SkyCanvasProps>(({ settings, onPla
         screenPos,
         celestialPos
       };
-    }).filter(p => p !== null && p.screenPos !== null && p.celestialPos && p.celestialPos.altitude > -10); // Show slightly below horizon
+    }).filter(p => p !== null && p.screenPos !== null); // Remove altitude filter in demo
   }, [planets, currentTime, coords, alpha, beta, manualAlpha, manualBeta, dimensions, locationLoading, facingMode]);
 
   // Calculate constellation screen positions
